@@ -1,14 +1,15 @@
 #include<iostream>
 #include<vector>
 #include<sstream>
+#define ull unsigned long long
 
 class Node{
         public:
                 char character;
-                int frequency;
+                ull frequency;
                 Node * left;
-                Node * right;  
-                
+                Node * right; 
+                 
         Node(char c, int f, Node* l, Node* r){
                 character = c;
                 frequency = f;
