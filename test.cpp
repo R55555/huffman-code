@@ -1,7 +1,6 @@
 #include<iostream>
 #include<vector>
-//#include<map> //required when using map
-#include<unordered_map> //required when using unordered_map
+#include<unordered_map> 
 #include<sstream>
 #include<typeinfo>
 #define ull unsigned long long
@@ -120,33 +119,6 @@ void build_huffman_tree(std::vector<Node *>& nodes, std::string str){
         
 }
 
-/*
-void get_huffman_code(Node* node, std::string str, std::unordered_map<char,ull> &m){
-        if(node->left!=NULL){
-                str.push_back('0');
-                get_huffman_code(node->left, str, m);
-                str.pop_back();
-        }
-        if(node->right!=NULL){
-                str.push_back('1');
-                get_huffman_code(node->right, str, m);
-                str.pop_back();
-        }
-        if(node->left==NULL && node->right==NULL){
-                //std::cout<<node->character<<" : "<<node->frequency<<" :: "<<str<<std::endl;
-                //m.insert(std::make_pair(node->character, node->frequency));
-                m[node->character] = node->frequency;
-                //try unordered map for hash table 
-        }
-}
-
-void print_huffman_code(std::unordered_map<char, ull> m){
-        //to do
-        for(auto i: m){
-               std::cout<<i.first<<" : "<<i.second<<std::endl;
-        }
-}
-*/
 
 void get_huffman_code(Node* node, std::string str, std::unordered_map<char,std::string> &m){
         if(node->left!=NULL){
@@ -160,10 +132,7 @@ void get_huffman_code(Node* node, std::string str, std::unordered_map<char,std::
                 str.pop_back();
         }
         if(node->left==NULL && node->right==NULL){
-                //std::cout<<node->character<<" : "<<node->frequency<<" :: "<<str<<std::endl;
-                //m.insert(std::make_pair(node->character, node->frequency));
                 m[node->character] = str;
-                //try unordered map for hash table 
         }
 }
 
@@ -178,13 +147,10 @@ int main(){
         int size;
         std::string str, code;
         std::vector<Node *> nodes;
-        //std::unordered_map<char,ull> m;
         std::unordered_map<char,std::string> m;
         getline(std::cin, str);
         build_huffman_tree(nodes, str);
-        //get_huffman_code(nodes[0], code, m);
         get_huffman_code(nodes[0], code, m);
-        //print_huffman_code(m);
         print_huffman_code(m);
         m.clear();
         free_nodes(nodes);
