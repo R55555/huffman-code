@@ -33,7 +33,7 @@ void get_char_frequency(std::vector<Node *>& nodes, std::string str){
         int i,flag;
         std::stringstream strstream;
         strstream << str;
-        while(strstream>>ch){
+        while(strstream.get(ch)){//get is used to include spaces, newlines
                 flag = 0;
                 for(i=0; i<nodes.size(); i++){
                         if(nodes[i]->character==ch){
@@ -143,6 +143,9 @@ void print_huffman_code(std::unordered_map<char, std::string> m){
         }
 }
 
+//To do - change the code such that we get input from a file
+//        and fnd the character frequency based on the input
+
 int main(){
         int size;
         std::string str, code;
@@ -150,7 +153,7 @@ int main(){
         std::unordered_map<char,std::string> m;
         getline(std::cin, str);
         build_huffman_tree(nodes, str);
-        get_huffman_code(nodes[0], code, m);
+        get_huffman_code(nodes[0], code, m); //Now I have the huffman code inside the unordered map.       
         print_huffman_code(m);
         m.clear();
         free_nodes(nodes);
