@@ -1,7 +1,7 @@
 #include<iostream>
 #include<vector>
 #include<unordered_map> 
-#include<sstream>
+#include<fstream>
 #include<typeinfo>
 #define ull unsigned long long
 
@@ -28,12 +28,10 @@ void free_nodes(std::vector<Node *>& nodes){
         }
 }
 
-void get_char_frequency(std::vector<Node *>& nodes, std::string str){
+void get_char_frequency(std::vector<Node *>& nodes, std::ifstream &file){
         char ch;
         int i,flag;
-        std::stringstream strstream;
-        strstream << str;
-        while(strstream.get(ch)){//get is used to include spaces, newlines
+        while(file.get(ch)){//get is used to include spaces, newlines
                 flag = 0;
                 for(i=0; i<nodes.size(); i++){
                         if(nodes[i]->character==ch){
@@ -96,11 +94,11 @@ void print_character_frequency(std::vector<Node *>& nodes){
         }
 }
 
-void build_huffman_tree(std::vector<Node *>& nodes, std::string str){
+void build_huffman_tree(std::vector<Node *>& nodes, std::ifstream &file){
         int size;
         Node* min1;
         Node* min2;
-        get_char_frequency(nodes, str);
+        get_char_frequency(nodes, file);
         size=nodes.size();
 
         build_min_heap(nodes,size);
@@ -143,21 +141,33 @@ void print_huffman_code(std::unordered_map<char, std::string> m){
         }
 }
 
-//To do - change the code such that we get input from a file
-//        and fnd the character frequency based on the input
-
-int main(){
+int main(int argc, char* argv[]){
         int size;
-        std::string str, code;
+        std::string code;
         std::vector<Node *> nodes;
         std::unordered_map<char,std::string> m;
-        getline(std::cin, str);
-        build_huffman_tree(nodes, str);
-        get_huffman_code(nodes[0], code, m); //Now I have the huffman code inside the unordered map.       
-        print_huffman_code(m);
-        m.clear();
-        free_nodes(nodes);
-        nodes.clear();
+        std::ifstream file(argv[1]);
+        if(file.is_open()){
+                if(file.peek()==EOF){
+                        std::cerr<<"File empty"<<std::endl;
+                        return -1;
+                }
+                build_huffman_tree(nodes, file);
+                get_huffman_code(nodes[0], code, m); //Now I have the huffman code inside the unordered map.       
+                std::cout<<std::endl;
+                //Next make file pointer to the staring position
+                //Then compress the file using huffman code
+                print_huffman_code(m);
+                file.close();
+                m.clear();
+                free_nodes(nodes);
+                nodes.clear();
+        }
+        else{
+                std::cerr<<"Cannot open file"<<std::endl;
+                return -1;
+        }
+        return 0;
 
         
 
