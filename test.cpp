@@ -143,9 +143,8 @@ void print_huffman_code(std::unordered_map<char, std::string> m){
 }
 
 void encode(std::ifstream &file, std::unordered_map<char,std::string> m){
-        std::ofstream out("hihihi.bin", std::ios::app);
+        std::ofstream out("hihihi.bin");
         unsigned char byte = 0, append=1;
-        int test;
         std::string str;
         int counter=0;
         char ch;
@@ -153,7 +152,7 @@ void encode(std::ifstream &file, std::unordered_map<char,std::string> m){
                 str=m[ch];
                 for(char i: str){
                         if(counter==8){
-                                std::cout<<counter;
+                                //std::cout<<counter;
                                 counter=0;
                                 out.put(byte);
                                 byte=0;
@@ -177,6 +176,42 @@ void encode(std::ifstream &file, std::unordered_map<char,std::string> m){
         out.close();
 }
 
+void decode(std::ifstream &file, std::unordered_map<char,std::string> m, Node *node){
+        unsigned char mask=128;
+        char ch;
+        Node *head = node;
+        std::cout<<std::endl;
+        while(file.get(ch)){
+                for(int counter=0; counter<8; counter++){
+                        if((head->left==NULL) && (head->right==NULL)){
+                                        std::cout<<head->character;
+                                        head=node;       
+                        }
+                        if(ch & mask){
+                                //std::cout<<1;
+                                if(head->right==NULL){
+                                        std::cerr<<"Error no right child"<<std::endl;
+                                        return;
+                                }
+                                else{
+                                        head = head->right;
+                                }
+                        }
+                        else{
+                                //std::cout<<0;
+                                if(head->left==NULL){
+                                        std::cerr<<"Error no left child"<<std::endl;
+                                        return;
+                                }
+                                else{
+                                        head = head->left;
+                                }
+                        }
+                        ch=ch<<1;
+                }
+        }
+        
+}
 
 
 int main(int argc, char* argv[]){
@@ -198,16 +233,27 @@ int main(int argc, char* argv[]){
                 file.seekg(0,std::ios::beg);//to reach the beginning of the file to start compression.
                 encode(file, m);//encoding using huffman-code
                 file.close();
-                m.clear();
-                free_nodes(nodes);
-                nodes.clear();
         }
         else{
                 std::cerr<<"Cannot open file"<<std::endl;
                 return -1;
         }
+        std::ifstream dfile("hihihi.bin", std::ios::binary);//to decode
+        if(dfile.is_open()){
+                decode(dfile, m, nodes[0]);
+                //Next don't decode the padded bits. Do something for that.
+                dfile.close();
+        }
+        else{
+                std::cerr<<"Cannot open encoded file"<<std::endl;
+                return -1;
+        } 
+        
+        
+        m.clear();
+        free_nodes(nodes);
+        nodes.clear();
         return 0;
 
         
-
 }
