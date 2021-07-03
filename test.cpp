@@ -99,6 +99,7 @@ void build_huffman_tree(std::vector<Node *>& nodes, std::ifstream &file){
         Node* min1;
         Node* min2;
         get_char_frequency(nodes, file);
+        print_character_frequency(nodes);
         size=nodes.size();
 
         build_min_heap(nodes,size);
@@ -141,6 +142,43 @@ void print_huffman_code(std::unordered_map<char, std::string> m){
         }
 }
 
+void encode(std::ifstream &file, std::unordered_map<char,std::string> m){
+        std::ofstream out("hihihi.bin", std::ios::app);
+        unsigned char byte = 0, append=1;
+        int test;
+        std::string str;
+        int counter=0;
+        char ch;
+        while(file.get(ch)){
+                str=m[ch];
+                for(char i: str){
+                        if(counter==8){
+                                std::cout<<counter;
+                                counter=0;
+                                out.put(byte);
+                                byte=0;
+                        }
+                        if(i=='1'){
+                                byte=byte<<1;
+                                byte=byte|append;
+                                std::cout<<i;     
+                        }
+                        else if(i=='0'){
+                                byte=byte<<1;   
+                                std::cout<<i;    
+                        }
+                        counter++; 
+                }
+        }
+        if(counter!=8){
+                byte=byte<<(8-counter);
+                out.put(byte);
+        }
+        out.close();
+}
+
+
+
 int main(int argc, char* argv[]){
         int size;
         std::string code;
@@ -155,9 +193,10 @@ int main(int argc, char* argv[]){
                 build_huffman_tree(nodes, file);
                 get_huffman_code(nodes[0], code, m); //Now I have the huffman code inside the unordered map.       
                 std::cout<<std::endl;
-                //Next make file pointer to the staring position
-                //Then compress the file using huffman code
                 print_huffman_code(m);
+                file.clear();
+                file.seekg(0,std::ios::beg);//to reach the beginning of the file to start compression.
+                encode(file, m);//encoding using huffman-code
                 file.close();
                 m.clear();
                 free_nodes(nodes);
