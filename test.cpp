@@ -99,7 +99,7 @@ void build_huffman_tree(std::vector<Node *>& nodes, std::ifstream &file){
         Node* min1;
         Node* min2;
         get_char_frequency(nodes, file);
-        print_character_frequency(nodes);
+        //print_character_frequency(nodes); //to print the character frequency
         size=nodes.size();
 
         build_min_heap(nodes,size);
@@ -119,7 +119,7 @@ void build_huffman_tree(std::vector<Node *>& nodes, std::ifstream &file){
 }
 
 
-void get_huffman_code(Node* node, std::string str, std::unordered_map<char,std::string> &m){
+void get_huffman_code(Node* node, std::string str, std::unordered_map<char,std::string> &m, int count=0){
         if(node->left!=NULL){
                 str.push_back('0');
                 get_huffman_code(node->left, str, m);
@@ -142,12 +142,116 @@ void print_huffman_code(std::unordered_map<char, std::string> m){
         }
 }
 
-void encode(std::ifstream &file, std::unordered_map<char,std::string> m){
+int decode(std::string file_to_decode, std::unordered_map<char,std::string> m, Node *node, int padding){
+        unsigned char mask=128;
+        char ch,next_ch;
+        std::ifstream file(file_to_decode, std::ios::binary);//to decode
+        std::ifstream file_next(file_to_decode, std::ios::binary);
+        //two filestreams are opened on same file to get the last byte in ch
+        //so that it is easy to ignore the padding.
+        if(!file.is_open() || !file_next.is_open()){
+                std::cerr<<"Cannot open file to decode"<<std::endl;
+                return -1;
+        }        
+
+        file_next.get(next_ch);
+        //std::cout<<std::endl<<next_ch<<std::endl;
+        
+        Node *head = node;
+        std::cout<<std::endl;
+        while(file.get(ch)&&file_next.get(next_ch)){
+                for(int counter=0; counter<8; counter++){
+                        if((head->left==NULL) && (head->right==NULL)){
+                                        std::cout<<head->character;
+                                        head=node;       
+                        }
+                        if(ch & mask){
+                                //std::cout<<1;
+                                if(head->right==NULL){
+                                        std::cerr<<"Error no right child"<<std::endl;
+                                        return -1;
+                                }
+                                else{
+                                        head = head->right;
+                                }
+                        }
+                        else{
+                                //std::cout<<0;
+                                if(head->left==NULL){
+                                        std::cerr<<"Error no left child"<<std::endl;
+                                        return -1;
+                                }
+                                else{
+                                        head = head->left;
+                                }
+                        }
+                        ch=ch<<1;
+                }
+        }
+        //below for loop to get the last required bits and ignore padding
+        for(int counter=0; counter<(8-padding); counter++){
+                if((head->left==NULL) && (head->right==NULL)){
+                        std::cout<<head->character;
+                        head=node;       
+                }
+                if(ch & mask){
+                                //std::cout<<1;
+                        if(head->right==NULL){
+                                std::cerr<<"Error no right child"<<std::endl;
+                                return -1;
+                        }
+                        else{
+                                head = head->right;
+                        }
+                }
+                else{
+                        //std::cout<<0;
+                        if(head->left==NULL){
+                                std::cerr<<"Error no left child"<<std::endl;
+                                return -1;
+                        }
+                        else{
+                                head = head->left;
+                        }
+                }
+                ch=ch<<1;
+        }
+        file_next.close();
+        file.close();
+        return 1;
+        
+}
+
+int encode(std::string file_to_encode){
+        std::string code;
+        std::vector<Node *> nodes;
+        std::unordered_map<char,std::string> m;
+        std::ifstream file(file_to_encode);
+        if(!file.is_open()){
+                std::cerr<<"Cannot open file"<<std::endl;
+                return -1;
+        }
+        if(file.peek()==EOF){
+                        std::cerr<<"File empty"<<std::endl;
+                        return -1;
+        }
+        build_huffman_tree(nodes, file);
+        get_huffman_code(nodes[0], code, m); //Now I have the huffman code inside the unordered_map m.       
+        //std::cout<<std::endl;
+        //print_huffman_code(m); //to print huffman code
+        file.clear();
+        file.seekg(0,std::ios::beg);//to reach the beginning of the file to start compression.
+                
+        
+        
+        //encoding starts here
         std::ofstream out("hihihi.bin");
         unsigned char byte = 0, append=1;
         std::string str;
         int counter=0;
         char ch;
+        //add code to enter the header before data here
+        
         while(file.get(ch)){
                 str=m[ch];
                 for(char i: str){
@@ -160,99 +264,46 @@ void encode(std::ifstream &file, std::unordered_map<char,std::string> m){
                         if(i=='1'){
                                 byte=byte<<1;
                                 byte=byte|append;
-                                std::cout<<i;     
+                                //std::cout<<i;     
                         }
                         else if(i=='0'){
                                 byte=byte<<1;   
-                                std::cout<<i;    
+                                //std::cout<<i;    
                         }
                         counter++; 
                 }
         }
-        if(counter!=8){
+        if(counter!=8){//padding extra bits
                 byte=byte<<(8-counter);
                 out.put(byte);
         }
+        file.close();
         out.close();
-}
-
-void decode(std::ifstream &file, std::unordered_map<char,std::string> m, Node *node){
-        unsigned char mask=128;
-        char ch;
-        Node *head = node;
-        std::cout<<std::endl;
-        while(file.get(ch)){
-                for(int counter=0; counter<8; counter++){
-                        if((head->left==NULL) && (head->right==NULL)){
-                                        std::cout<<head->character;
-                                        head=node;       
-                        }
-                        if(ch & mask){
-                                //std::cout<<1;
-                                if(head->right==NULL){
-                                        std::cerr<<"Error no right child"<<std::endl;
-                                        return;
-                                }
-                                else{
-                                        head = head->right;
-                                }
-                        }
-                        else{
-                                //std::cout<<0;
-                                if(head->left==NULL){
-                                        std::cerr<<"Error no left child"<<std::endl;
-                                        return;
-                                }
-                                else{
-                                        head = head->left;
-                                }
-                        }
-                        ch=ch<<1;
-                }
-        }
+        
+        
+        //decode test start
+        decode("hihihi.bin", m, nodes[0],(8-counter));
+        //decode test ends
+        
+        m.clear();
+        free_nodes(nodes);
+        nodes.clear();
+        
+        return (8-counter);//returns the number of padded bits.
         
 }
 
 
 int main(int argc, char* argv[]){
-        int size;
-        std::string code;
-        std::vector<Node *> nodes;
-        std::unordered_map<char,std::string> m;
-        std::ifstream file(argv[1]);
-        if(file.is_open()){
-                if(file.peek()==EOF){
-                        std::cerr<<"File empty"<<std::endl;
-                        return -1;
-                }
-                build_huffman_tree(nodes, file);
-                get_huffman_code(nodes[0], code, m); //Now I have the huffman code inside the unordered map.       
-                std::cout<<std::endl;
-                print_huffman_code(m);
-                file.clear();
-                file.seekg(0,std::ios::beg);//to reach the beginning of the file to start compression.
-                encode(file, m);//encoding using huffman-code
-                file.close();
-        }
-        else{
-                std::cerr<<"Cannot open file"<<std::endl;
+        int padding; //to store the no. of padding bits.
+        
+        if(argc==1 || argc>2){
+                std::cerr<<"Invalid number of arguments"<<std::endl;
                 return -1;
         }
-        std::ifstream dfile("hihihi.bin", std::ios::binary);//to decode
-        if(dfile.is_open()){
-                decode(dfile, m, nodes[0]);
-                //Next don't decode the padded bits. Do something for that.
-                dfile.close();
-        }
-        else{
-                std::cerr<<"Cannot open encoded file"<<std::endl;
-                return -1;
-        } 
+                
+        padding = encode(argv[1]);
         
-        
-        m.clear();
-        free_nodes(nodes);
-        nodes.clear();
         return 0;
 
         
