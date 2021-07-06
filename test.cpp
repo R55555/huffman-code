@@ -3,7 +3,7 @@
 #include<unordered_map> 
 #include<fstream>
 #include<typeinfo>
-#define ull unsigned long long
+#define ull unsigned long
 
 class Node{
         public:
@@ -119,7 +119,7 @@ void build_huffman_tree(std::vector<Node *>& nodes, std::ifstream &file){
 }
 
 
-void get_huffman_code(Node* node, std::string str, std::unordered_map<char,std::string> &m, int count=0){
+void get_huffman_code(Node* node, std::string str, std::unordered_map<char,std::string> &m){
         if(node->left!=NULL){
                 str.push_back('0');
                 get_huffman_code(node->left, str, m);
@@ -142,17 +142,29 @@ void print_huffman_code(std::unordered_map<char, std::string> m){
         }
 }
 
-int decode(std::string file_to_decode, std::unordered_map<char,std::string> m, Node *node, int padding){
+int decode(std::string file_to_decode, std::unordered_map<char,std::string> m, Node *node, int padding, ull offset){
         unsigned char mask=128;
+        //char byte, pad;
+        unsigned int a, counter, j;
+        //std::unordered_map<char,std::string> m; required in the next step to get from headers
         char ch,next_ch;
+        //std::string str;
+        //ull num;
+        
+        
         std::ifstream file(file_to_decode, std::ios::binary);//to decode
         std::ifstream file_next(file_to_decode, std::ios::binary);
+        
+        
         //two filestreams are opened on same file to get the last byte in ch
         //so that it is easy to ignore the padding.
         if(!file.is_open() || !file_next.is_open()){
                 std::cerr<<"Cannot open file to decode"<<std::endl;
                 return -1;
-        }        
+        }      
+        //std::cout<<std::endl<<offset<<std::endl;
+        file.seekg(offset,std::ios::beg);
+        file_next.seekg(offset,std::ios::beg);  
 
         file_next.get(next_ch);
         //std::cout<<std::endl<<next_ch<<std::endl;
@@ -217,6 +229,7 @@ int decode(std::string file_to_decode, std::unordered_map<char,std::string> m, N
                 ch=ch<<1;
         }
         file_next.close();
+        
         file.close();
         return 1;
         
@@ -227,6 +240,7 @@ int encode(std::string file_to_encode){
         std::vector<Node *> nodes;
         std::unordered_map<char,std::string> m;
         std::ifstream file(file_to_encode);
+        ull offset;
         if(!file.is_open()){
                 std::cerr<<"Cannot open file"<<std::endl;
                 return -1;
@@ -241,20 +255,40 @@ int encode(std::string file_to_encode){
         //print_huffman_code(m); //to print huffman code
         file.clear();
         file.seekg(0,std::ios::beg);//to reach the beginning of the file to start compression.
-                
-        
         
         //encoding starts here
         std::ofstream out("hihihi.bin");
-        unsigned char byte = 0, append=1;
+        unsigned char byte, append=1;
         std::string str;
-        int counter=0;
+        unsigned int counter=0, temp;
         char ch;
-        //add code to enter the header before data here
+        //ull input;
         
+     
+        //header begin 
+        
+        //easiest way is to print m(unordered_map) on to the file
+        //but since we have stored the code as strings, there is a chance for the size to increase
+        //to decrease the size we can try a different approach.
+        
+        //1. enter the total number of characters
+        //2. enter the maximum bytes required for one character encoding
+        //3. add the character
+        //4. add the size of huffman code in bits divided by 8 (integer division) to get bytes
+        //      the rest can be padded and added as another byte.
+        //4. add the huffman code, padding is done if necessary
+        //5. one more byte is added to indicate the padded bits
+        
+               
+       
+        offset=out.tellp(); // to test decode
+        //header end
+        
+        //data encoding starts
+        counter=0; byte=0;
         while(file.get(ch)){
                 str=m[ch];
-                for(char i: str){
+                for(char i: str){ // can be reused in header. so make it another function after all tests are successful.
                         if(counter==8){
                                 //std::cout<<counter;
                                 counter=0;
@@ -277,13 +311,13 @@ int encode(std::string file_to_encode){
                 byte=byte<<(8-counter);
                 out.put(byte);
         }
+        //data encoding ends
+        
         file.close();
         out.close();
         
-        
-        //decode test start
-        decode("hihihi.bin", m, nodes[0],(8-counter));
-        //decode test ends
+        decode("hihihi.bin", m, nodes[0],(8-counter), offset);
+       
         
         m.clear();
         free_nodes(nodes);
