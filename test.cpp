@@ -4,6 +4,8 @@
 #include<fstream>
 #include<typeinfo>
 #define ull unsigned long
+#define head_size int  
+#define byte_count int
 
 class Node{
         public:
@@ -142,42 +144,79 @@ void print_huffman_code(std::unordered_map<char, std::string> m){
         }
 }
 
-int decode(std::string file_to_decode, std::unordered_map<char,std::string> m, Node *node, int padding, ull offset){
-        unsigned char mask=128;
-        //char byte, pad;
+int decode(std::string file_to_decode, std::unordered_map<char,std::string> m, Node *node/*, int padding*/, ull offset){
+        unsigned char data_mask=128, extra_mask=1, padding;
         unsigned int a, counter, j;
         //std::unordered_map<char,std::string> m; required in the next step to get from headers
-        char ch,next_ch;
-        //std::string str;
-        //ull num;
+        char ch,next_ch, end;
+        head_size size;
+        byte_count count;
+        ull last_byte;
         
         
-        std::ifstream file(file_to_decode, std::ios::binary);//to decode
-        std::ifstream file_next(file_to_decode, std::ios::binary);
-        
-        
+        std::ifstream file(file_to_decode, std::ios::binary);
+        //std::ifstream file_next(file_to_decode, std::ios::binary);
+        std::ifstream file_end(file_to_decode, std::ios::binary);
         //two filestreams are opened on same file to get the last byte in ch
         //so that it is easy to ignore the padding.
-        if(!file.is_open() || !file_next.is_open()){
+        if(!file.is_open() /*|| !file_next.is_open()*/ || !file_end.is_open()){
                 std::cerr<<"Cannot open file to decode"<<std::endl;
                 return -1;
         }      
         //std::cout<<std::endl<<offset<<std::endl;
+        
+        //header decode start
+        /*
+        std::cout<<std::endl<<std::endl;
+        file>>size;
+        std::cout<<size;
+        for(head_size i;i<size; i++){
+                file.get(ch);
+                std::cout<<"'"<<ch<<":";
+                file>>count;
+                std::cout<<count<<"'";
+                /*for(byte_count iter=0; iter<count; iter++){
+                        file.get(ch);
+                }
+                file.get(ch); // to get the mask if extra bytes is present
+                if(ch&extra_mask){//to check if extra padded byte is present
+                        file.get(ch);
+                }
+                
+                
+        }*/
+        
+        //header decode end
+        
         file.seekg(offset,std::ios::beg);
-        file_next.seekg(offset,std::ios::beg);  
+        //file_next.seekg(offset,std::ios::beg);  
 
-        file_next.get(next_ch);
+        //file_next.get(next_ch);
         //std::cout<<std::endl<<next_ch<<std::endl;
         
+        //file_end.seekg(-2, std::ios::end);
+        //last_byte=file_end.tellg();
+        file_end.seekg(-1, std::ios::end);
+        last_byte=file_end.tellg();
+        file_end.get(end);
+        
+        padding=0;
+        for(unsigned char iter=0; iter<8; iter++){
+                if(end&extra_mask){
+                        std::cout<<1;
+                        padding++;
+                } else {
+                        std::cout<<0;
+                }
+                end=end>>1;
+        }
+        
+        //decode data starts
         Node *head = node;
         std::cout<<std::endl;
-        while(file.get(ch)&&file_next.get(next_ch)){
-                for(int counter=0; counter<8; counter++){
-                        if((head->left==NULL) && (head->right==NULL)){
-                                        std::cout<<head->character;
-                                        head=node;       
-                        }
-                        if(ch & mask){
+        while(file.get(ch)&&/*file_next.get(next_ch)*/(file.tellg()<last_byte)){
+                for(unsigned char counter=0; counter<8; counter++){
+                        if(ch & data_mask){
                                 //std::cout<<1;
                                 if(head->right==NULL){
                                         std::cerr<<"Error no right child"<<std::endl;
@@ -197,16 +236,16 @@ int decode(std::string file_to_decode, std::unordered_map<char,std::string> m, N
                                         head = head->left;
                                 }
                         }
+                        if((head->left==NULL) && (head->right==NULL)){
+                                        std::cout<<head->character;
+                                        head=node;       
+                        }
                         ch=ch<<1;
                 }
         }
         //below for loop to get the last required bits and ignore padding
-        for(int counter=0; counter<(8-padding); counter++){
-                if((head->left==NULL) && (head->right==NULL)){
-                        std::cout<<head->character;
-                        head=node;       
-                }
-                if(ch & mask){
+        for(unsigned char counter=0; counter<(8-padding); counter++){//we need to extract the padding from the last byte
+                if(ch & data_mask){
                                 //std::cout<<1;
                         if(head->right==NULL){
                                 std::cerr<<"Error no right child"<<std::endl;
@@ -226,10 +265,16 @@ int decode(std::string file_to_decode, std::unordered_map<char,std::string> m, N
                                 head = head->left;
                         }
                 }
+                if((head->left==NULL) && (head->right==NULL)){
+                        std::cout<<head->character;
+                        head=node;       
+                }
                 ch=ch<<1;
         }
-        file_next.close();
+        //decode data ends
+        //file_next.close();
         
+        file_end.close();
         file.close();
         return 1;
         
@@ -239,7 +284,7 @@ int encode(std::string file_to_encode){
         std::string code;
         std::vector<Node *> nodes;
         std::unordered_map<char,std::string> m;
-        std::ifstream file(file_to_encode);
+        std::ifstream file(file_to_encode, std::ios::binary);
         ull offset;
         if(!file.is_open()){
                 std::cerr<<"Cannot open file"<<std::endl;
@@ -258,11 +303,12 @@ int encode(std::string file_to_encode){
         
         //encoding starts here
         std::ofstream out("hihihi.bin");
-        unsigned char byte, append=1;
+        unsigned char counter, byte, mask, append=1;
         std::string str;
-        unsigned int counter=0, temp;
         char ch;
-        //ull input;
+        head_size size;
+        byte_count count;
+        
         
      
         //header begin 
@@ -275,26 +321,56 @@ int encode(std::string file_to_encode){
         //2. enter the maximum bytes required for one character encoding
         //3. add the character
         //4. add the size of huffman code in bits divided by 8 (integer division) to get bytes
-        //      the rest can be padded and added as another byte.
-        //4. add the huffman code, padding is done if necessary
-        //5. one more byte is added to indicate the padded bits
-        
-               
+        //      the rest can be padded and added as another byte. 
+        //4. add the huffman code, padding is done if necessary. before padded byte add mask to indicate whether padder or not.
+        /*
+        size=m.size();
+        out<<size;     
+        for(auto i: m){
+                out<<i.first;   
+                std::cout<<"'"<<i.first<<":";
+                count = (i.second.size())/8;
+                out<<count;
+                std::cout<<count<<"'";
+                /*counter = 0;
+                for(byte_count j=0; j<count; j++){
+                        byte=0;
+                        for(char c: i.second){
+                                if(counter==8){
+                                        out.put(byte);
+                                        byte=0;
+                                        counter=0;
+                                }
+                                if(c=='1'){
+                                        byte<<1;
+                                        byte=byte|append;
+                                } else if(c=='0'){
+                                        byte=byte|append;
+                                }
+                                counter++;
+                        }   
+                        if(counter!=8){
+                                        byte=byte<<(8-counter);
+                                        out.put(byte);
+                                        for(unsigned char iter=0; iter<(8-counter); iter++){
+                                                mask = mask<<1;
+                                                mask = mask|append;
+                                        }       
+                        }  
+                
+                }
+        }
+        std::cout<<out.tellp();*/
+       
+        //header end
        
         offset=out.tellp(); // to test decode
-        //header end
         
         //data encoding starts
         counter=0; byte=0;
         while(file.get(ch)){
                 str=m[ch];
                 for(char i: str){ // can be reused in header. so make it another function after all tests are successful.
-                        if(counter==8){
-                                //std::cout<<counter;
-                                counter=0;
-                                out.put(byte);
-                                byte=0;
-                        }
                         if(i=='1'){
                                 byte=byte<<1;
                                 byte=byte|append;
@@ -305,18 +381,31 @@ int encode(std::string file_to_encode){
                                 //std::cout<<i;    
                         }
                         counter++; 
+                        if(counter==8){
+                                //std::cout<<counter;
+                                counter=0;
+                                out.put(byte);
+                                byte=0;
+                        }
                 }
         }
         if(counter!=8){//padding extra bits
                 byte=byte<<(8-counter);
                 out.put(byte);
-        }
+                byte=0;
+                for(unsigned char iter=0; iter<(8-counter); iter++){
+                        byte=byte<<1;
+                        byte = byte|append;
+                }
+                out.put(byte); // to understand the last padded bits
+        } 
+        
         //data encoding ends
         
         file.close();
         out.close();
         
-        decode("hihihi.bin", m, nodes[0],(8-counter), offset);
+        decode("hihihi.bin", m, nodes[0]/*,(8-counter)*/, offset);
        
         
         m.clear();
