@@ -177,30 +177,25 @@ int decode(std::string file_to_decode, std::unordered_map<char,std::string> m, N
                 std::cout<<count<<"'";
                 for(byte_count iter=0; iter<count; iter++){
                         file.get(ch);
-                        for(counter = 0; counter<8; counter++){
-                                if(ch & data_mask){
-                                        std::cout<<1;
-                                }
-                                else{
-                                        std::cout<<0;
-                                }
-                        }
-                }
-                file.get(ch); // to get the mask if extra bytes is present
-                if(ch&extra_mask){//to check if extra padded byte is present              
-                        std::cout<<"%";     
-                        file.get(end);
-                        /*for(counter=0; counter<8; counter++){
-                                if(ch&extra_mask){
+                        for(counter=0; counter<8; counter++){
+                                if(ch&data_mask){
                                         std::cout<<1;
                                 } else {
                                         std::cout<<0;
                                 }
-                                ch=ch>>1;
-                        }*/
-                        std::cout<<"%";
-                        
-                        
+                                ch=ch<<1;
+                        }
+                }
+                file.get(ch); // to get the mask if extra bytes is present
+                file.get(end); //the last byte
+                while(ch&data_mask){
+                        if(end&data_mask){      
+                                std::cout<<1;
+                        } else {
+                                std::cout<<0;
+                        }
+                        end=end<<1;
+                        ch=ch<<1;
                 }
                 
                 
@@ -221,7 +216,9 @@ int decode(std::string file_to_decode, std::unordered_map<char,std::string> m, N
         file_end.get(end);
         
         padding=0;
-        for(unsigned char iter=0; iter<8; iter++){//to get how many bits are padded at the last of data
+        for(unsigned char iter=0; iter<8; iter++){//change this so that this loop is not needed. 
+        //for that first change the encoding using data_mask so that we can decode with it
+        //Thus removing append in decode and extra_mask in decode
                 if(end&extra_mask){
                         //std::cout<<1;
                         padding++;
@@ -323,7 +320,7 @@ int encode(std::string file_to_encode){
         
         //encoding starts here
         std::ofstream out("hihihi.bin");
-        unsigned char counter, byte, mask, append=1;
+        unsigned char counter, byte, mask, append=1, data_mask=128;
         std::string str;
         char ch;
         head_size size;
@@ -384,12 +381,12 @@ int encode(std::string file_to_encode){
                         }
                 }
                         
-                byte=byte<<(8-counter);
+                byte=byte<<(8-((i.second.size())-j));
                 //out.put(byte);
                 mask=0;
-                for(unsigned char iter=0; iter<(8-((i.second.size())-j)); iter++){ //problem here
-                        mask = mask<<1;
-                        mask = mask|append;
+                for(unsigned char iter=0; iter<((i.second.size())-j); iter++){ //problem here
+                        mask = mask>>1;
+                        mask = mask|data_mask;
                 }
                 out.put(mask);
                 out.put(byte);       
@@ -397,7 +394,7 @@ int encode(std::string file_to_encode){
                 
         }
         
-        std::cout<<out.tellp();
+        std::cout<<std::endl<<"Pointer pos after head : "<<out.tellp()<<std::endl;
        
         //header end
        
