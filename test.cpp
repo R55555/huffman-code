@@ -166,7 +166,7 @@ int decode(std::string file_to_decode, std::unordered_map<char,std::string> m, N
         //std::cout<<std::endl<<offset<<std::endl;
         
         //header decode start
-        /*
+        
         std::cout<<std::endl<<std::endl;
         file>>size;
         std::cout<<size;
@@ -181,14 +181,14 @@ int decode(std::string file_to_decode, std::unordered_map<char,std::string> m, N
                 file.get(ch); // to get the mask if extra bytes is present
                 if(ch&extra_mask){//to check if extra padded byte is present
                         file.get(ch);
-                }
+                }*/
                 
                 
-        }*/
+        }
         
         //header decode end
         
-        file.seekg(offset,std::ios::beg);
+        file.seekg(offset,std::ios::beg); //important when decode is tested
         //file_next.seekg(offset,std::ios::beg);  
 
         //file_next.get(next_ch);
@@ -323,7 +323,7 @@ int encode(std::string file_to_encode){
         //4. add the size of huffman code in bits divided by 8 (integer division) to get bytes
         //      the rest can be padded and added as another byte. 
         //4. add the huffman code, padding is done if necessary. before padded byte add mask to indicate whether padder or not.
-        /*
+        
         size=m.size();
         out<<size;     
         for(auto i: m){
@@ -358,9 +358,9 @@ int encode(std::string file_to_encode){
                                         }       
                         }  
                 
-                }
+                }*/
         }
-        std::cout<<out.tellp();*/
+        std::cout<<out.tellp();
        
         //header end
        
