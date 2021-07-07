@@ -144,22 +144,18 @@ void print_huffman_code(std::unordered_map<char, std::string> m){
         }
 }
 
-int decode(std::string file_to_decode, std::unordered_map<char,std::string> m, Node *node/*, int padding*/, ull offset){
-        unsigned char data_mask=128, extra_mask=1, padding;
-        unsigned int a, counter, j;
+int decode(std::string file_to_decode, std::unordered_map<char,std::string> m, Node *node){
+        unsigned char data_mask=128, extra_mask=1;
+        unsigned char counter;
         //std::unordered_map<char,std::string> m; required in the next step to get from headers
-        char ch,next_ch, end;
+        char ch, end;
         head_size size;
         byte_count count;
         ull last_byte;
         
-        
         std::ifstream file(file_to_decode, std::ios::binary);
-        //std::ifstream file_next(file_to_decode, std::ios::binary);
         std::ifstream file_end(file_to_decode, std::ios::binary);
-        //two filestreams are opened on same file to get the last byte in ch
-        //so that it is easy to ignore the padding.
-        if(!file.is_open() /*|| !file_next.is_open()*/ || !file_end.is_open()){
+        if(!file.is_open() || !file_end.is_open()){
                 std::cerr<<"Cannot open file to decode"<<std::endl;
                 return -1;
         }      
@@ -196,43 +192,20 @@ int decode(std::string file_to_decode, std::unordered_map<char,std::string> m, N
                         }
                         end=end<<1;
                         ch=ch<<1;
-                }
-                
-                
+                }        
         }
         
         //header decode end
         
-        file.seekg(offset,std::ios::beg); //important when decode is tested
-        //file_next.seekg(offset,std::ios::beg);  
-
-        //file_next.get(next_ch);
-        //std::cout<<std::endl<<next_ch<<std::endl;
-        
-        //file_end.seekg(-2, std::ios::end);
-        //last_byte=file_end.tellg();
         file_end.seekg(-1, std::ios::end);
-        last_byte=file_end.tellg();
+        last_byte=file_end.tellg(); // get the last byte - the last byte is having padding information
         file_end.get(end);
-        
-        padding=0;
-        for(unsigned char iter=0; iter<8; iter++){//change this so that this loop is not needed. 
-        //for that first change the encoding using data_mask so that we can decode with it
-        //Thus removing append in decode and extra_mask in decode
-                if(end&extra_mask){
-                        //std::cout<<1;
-                        padding++;
-                } else {
-                        //std::cout<<0;
-                }
-                end=end>>1;
-        }
         
         //decode data starts
         Node *head = node;
         std::cout<<std::endl;
         while(file.get(ch)&&/*file_next.get(next_ch)*/(file.tellg()<last_byte)){
-                for(unsigned char counter=0; counter<8; counter++){
+                for(counter=0; counter<8; counter++){
                         if(ch & data_mask){
                                 //std::cout<<1;
                                 if(head->right==NULL){
@@ -260,8 +233,7 @@ int decode(std::string file_to_decode, std::unordered_map<char,std::string> m, N
                         ch=ch<<1;
                 }
         }
-        //below for loop to get the last required bits and ignore padding
-        for(unsigned char counter=0; counter<(8-padding); counter++){//we need to extract the padding from the last byte
+        while(end & data_mask){
                 if(ch & data_mask){
                                 //std::cout<<1;
                         if(head->right==NULL){
@@ -287,9 +259,10 @@ int decode(std::string file_to_decode, std::unordered_map<char,std::string> m, N
                         head=node;       
                 }
                 ch=ch<<1;
+                end=end<<1;
+        
         }
         //decode data ends
-        //file_next.close();
         
         file_end.close();
         file.close();
@@ -330,16 +303,12 @@ int encode(std::string file_to_encode){
      
         //header begin 
         
-        //easiest way is to print m(unordered_map) on to the file
-        //but since we have stored the code as strings, there is a chance for the size to increase
-        //to decrease the size we can try a different approach.
-        
-        //1. enter the total number of characters
-        //2. enter the maximum bytes required for one character encoding
-        //3. add the character
-        //4. add the size of huffman code in bits divided by 8 (integer division) to get bytes
-        //      the rest can be padded and added as another byte. 
-        //4. add the huffman code, padding is done if necessary. before padded byte add mask to indicate whether padder or not.
+        //1. enter the total number of characters size. 
+        //2. add the character
+        //3. add the size of huffamn code in bits divided by 8(integer division) to get bytes that are not padded
+        //4. add the mask to identify the padded bits
+        //5. add the final byte of the huffman code with padding
+        //6. if no more characters then end, else goto step 2.
         
         size=m.size();
         out<<size;     
@@ -382,9 +351,8 @@ int encode(std::string file_to_encode){
                 }
                         
                 byte=byte<<(8-((i.second.size())-j));
-                //out.put(byte);
                 mask=0;
-                for(unsigned char iter=0; iter<((i.second.size())-j); iter++){ //problem here
+                for(unsigned char iter=0; iter<((i.second.size())-j); iter++){
                         mask = mask>>1;
                         mask = mask|data_mask;
                 }
@@ -401,10 +369,11 @@ int encode(std::string file_to_encode){
         offset=out.tellp(); // to test decode
         
         //data encoding starts
+        //huffman code is written as bits.
         counter=0; byte=0;
         while(file.get(ch)){
                 str=m[ch];
-                for(char i: str){ // can be reused in header. so make it another function after all tests are successful.
+                for(char i: str){
                         if(i=='1'){
                                 byte=byte<<1;
                                 byte=byte|append;
@@ -427,11 +396,12 @@ int encode(std::string file_to_encode){
                 byte=byte<<(8-counter);
                 out.put(byte);
                 byte=0;
-                for(unsigned char iter=0; iter<(8-counter); iter++){
-                        byte=byte<<1;
-                        byte = byte|append;
+               
+                for(unsigned char iter=0; iter<counter; iter++){
+                        byte=byte>>1;
+                        byte = byte|data_mask;
                 }
-                out.put(byte); // to understand the last padded bits
+                out.put(byte);
         } 
         
         //data encoding ends
@@ -439,20 +409,20 @@ int encode(std::string file_to_encode){
         file.close();
         out.close();
         
-        decode("hihihi.bin", m, nodes[0]/*,(8-counter)*/, offset);
+        decode("hihihi.bin", m, nodes[0]); //to test decode
        
         
         m.clear();
         free_nodes(nodes);
         nodes.clear();
         
-        return (8-counter);//returns the number of padded bits.
+        return (8-counter); //returns the number of padded bits. It was used in testing
         
 }
 
 
 int main(int argc, char* argv[]){
-        int padding; //to store the no. of padding bits.
+        int padding; //to store the no. of padding bits. For testing.
         
         if(argc==1 || argc>2){
                 std::cerr<<"Invalid number of arguments"<<std::endl;
