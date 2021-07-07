@@ -175,13 +175,33 @@ int decode(std::string file_to_decode, std::unordered_map<char,std::string> m, N
                 std::cout<<"'"<<ch<<":";
                 file>>count;
                 std::cout<<count<<"'";
-                /*for(byte_count iter=0; iter<count; iter++){
+                for(byte_count iter=0; iter<count; iter++){
                         file.get(ch);
+                        for(counter = 0; counter<8; counter++){
+                                if(ch & data_mask){
+                                        std::cout<<1;
+                                }
+                                else{
+                                        std::cout<<0;
+                                }
+                        }
                 }
                 file.get(ch); // to get the mask if extra bytes is present
-                if(ch&extra_mask){//to check if extra padded byte is present
-                        file.get(ch);
-                }*/
+                if(ch&extra_mask){//to check if extra padded byte is present              
+                        std::cout<<"%";     
+                        file.get(end);
+                        /*for(counter=0; counter<8; counter++){
+                                if(ch&extra_mask){
+                                        std::cout<<1;
+                                } else {
+                                        std::cout<<0;
+                                }
+                                ch=ch>>1;
+                        }*/
+                        std::cout<<"%";
+                        
+                        
+                }
                 
                 
         }
@@ -201,12 +221,12 @@ int decode(std::string file_to_decode, std::unordered_map<char,std::string> m, N
         file_end.get(end);
         
         padding=0;
-        for(unsigned char iter=0; iter<8; iter++){
+        for(unsigned char iter=0; iter<8; iter++){//to get how many bits are padded at the last of data
                 if(end&extra_mask){
-                        std::cout<<1;
+                        //std::cout<<1;
                         padding++;
                 } else {
-                        std::cout<<0;
+                        //std::cout<<0;
                 }
                 end=end>>1;
         }
@@ -296,8 +316,8 @@ int encode(std::string file_to_encode){
         }
         build_huffman_tree(nodes, file);
         get_huffman_code(nodes[0], code, m); //Now I have the huffman code inside the unordered_map m.       
-        //std::cout<<std::endl;
-        //print_huffman_code(m); //to print huffman code
+        std::cout<<std::endl;
+        print_huffman_code(m); //to print huffman code
         file.clear();
         file.seekg(0,std::ios::beg);//to reach the beginning of the file to start compression.
         
@@ -307,7 +327,7 @@ int encode(std::string file_to_encode){
         std::string str;
         char ch;
         head_size size;
-        byte_count count;
+        byte_count count,j;
         
         
      
@@ -332,34 +352,51 @@ int encode(std::string file_to_encode){
                 count = (i.second.size())/8;
                 out<<count;
                 std::cout<<count<<"'";
-                /*counter = 0;
-                for(byte_count j=0; j<count; j++){
-                        byte=0;
-                        for(char c: i.second){
-                                if(counter==8){
-                                        out.put(byte);
-                                        byte=0;
-                                        counter=0;
-                                }
-                                if(c=='1'){
-                                        byte<<1;
-                                        byte=byte|append;
-                                } else if(c=='0'){
-                                        byte=byte|append;
-                                }
-                                counter++;
-                        }   
-                        if(counter!=8){
-                                        byte=byte<<(8-counter);
-                                        out.put(byte);
-                                        for(unsigned char iter=0; iter<(8-counter); iter++){
-                                                mask = mask<<1;
-                                                mask = mask|append;
-                                        }       
-                        }  
+                counter = 0;
                 
-                }*/
+                for(j=0; j<count*8; j++){//problem found here and solved
+                        char c = i.second[j];
+                        if(c=='1'){
+                                byte=byte<<1;
+                                std::cout<<1;
+                                byte=byte|append;
+                        } else if(c=='0'){
+                                byte=byte<<1;
+                                std::cout<<0;
+                        }
+                        counter++;
+                        if(counter==8){
+                                out.put(byte);
+                                byte=0;
+                                counter=0;
+                        }
+                }
+                
+                for(unsigned char iter=0; iter<((i.second.size())-j); iter++){
+                        char c = i.second[j+iter];
+                        if(c=='1'){
+                                byte=byte<<1;
+                                std::cout<<1;
+                                byte=byte|append;
+                        } else {
+                                byte=byte<<1;
+                                std::cout<<0;
+                        }
+                }
+                        
+                byte=byte<<(8-counter);
+                //out.put(byte);
+                mask=0;
+                for(unsigned char iter=0; iter<(8-((i.second.size())-j)); iter++){ //problem here
+                        mask = mask<<1;
+                        mask = mask|append;
+                }
+                out.put(mask);
+                out.put(byte);       
+                 
+                
         }
+        
         std::cout<<out.tellp();
        
         //header end
