@@ -23,11 +23,51 @@ class Node{
                    
 };
 
+class Node_decode{
+        public:
+                char character;
+                Node * left;
+                Node * right; 
+                 
+        Node_decode(char c, Node* l, Node* r){
+                character = c;
+                left = l;
+                right = r;
+        }
+                   
+};
+
 void free_nodes(std::vector<Node *>& nodes){
         for(int i=0; i<nodes.size(); i++){
                 free(nodes[i]);
                 nodes[i] = NULL;
         }
+}
+
+void free_huffman_tree(Node* node){//to free huffman tree during encode
+        if(node->left!=NULL){
+                free_huffman_tree(node->left);
+        }
+        free(node->left);
+        node->left=NULL;
+        if(node->right!=NULL){
+                free_huffman_tree(node->right);
+        }
+        free(node->right);
+        node->right=NULL;
+} 
+
+void free_huffman_tree(Node_decode* node){//to free huffman tree during decode
+        if(node->left!=NULL){
+                free_huffman_tree(node->left);
+        }
+        free(node->left);
+        node->left=NULL;
+        if(node->right!=NULL){
+                free_huffman_tree(node->right);
+        }
+        free(node->right);
+        node->right=NULL;
 }
 
 void get_char_frequency(std::vector<Node *>& nodes, std::ifstream &file){
@@ -86,8 +126,6 @@ Node* extract_min(std::vector<Node *>& nodes, int &size){
 
         std::cout<<"Tree underflow"<<std::endl;
         return NULL;
-        
-        
 }
 
 void print_character_frequency(std::vector<Node *>& nodes){
@@ -120,6 +158,10 @@ void build_huffman_tree(std::vector<Node *>& nodes, std::ifstream &file){
         
 }
 
+Node_decode* build_huffman_tree_from_map(std::unordered_map<char, std::string> m); //write this function
+
+
+
 
 void get_huffman_code(Node* node, std::string str, std::unordered_map<char,std::string> &m){
         if(node->left!=NULL){
@@ -144,11 +186,12 @@ void print_huffman_code(std::unordered_map<char, std::string> m){
         }
 }
 
-int decode(std::string file_to_decode, std::unordered_map<char,std::string> m, Node *node){
+int decode(std::string file_to_decode, /*std::unordered_map<char,std::string> m,*/ Node *node){
         unsigned char data_mask=128, extra_mask=1;
         unsigned char counter;
-        //std::unordered_map<char,std::string> m; required in the next step to get from headers
-        char ch, end;
+        std::unordered_map<char,std::string> m; //required in the next step to get from headers
+        std::string str;
+        char c, ch, end;
         head_size size;
         byte_count count;
         ull last_byte;
@@ -163,21 +206,24 @@ int decode(std::string file_to_decode, std::unordered_map<char,std::string> m, N
         
         //header decode start
         
-        std::cout<<std::endl<<std::endl;
+        //std::cout<<std::endl<<std::endl;
         file>>size;
-        std::cout<<size;
+        //std::cout<<size;
         for(head_size i;i<size; i++){
-                file.get(ch);
-                std::cout<<"'"<<ch<<":";
+                file.get(c);
+                //std::cout<<"'"<<c<<":";
                 file>>count;
-                std::cout<<count<<"'";
+                //std::cout<<count<<"'";
+                str="";
                 for(byte_count iter=0; iter<count; iter++){
                         file.get(ch);
                         for(counter=0; counter<8; counter++){
                                 if(ch&data_mask){
-                                        std::cout<<1;
+                                        //std::cout<<1;
+                                        str.push_back('1');
                                 } else {
-                                        std::cout<<0;
+                                        //std::cout<<0;
+                                        str.push_back('0');
                                 }
                                 ch=ch<<1;
                         }
@@ -186,16 +232,30 @@ int decode(std::string file_to_decode, std::unordered_map<char,std::string> m, N
                 file.get(end); //the last byte
                 while(ch&data_mask){
                         if(end&data_mask){      
-                                std::cout<<1;
+                                //std::cout<<1;
+                                str.push_back('1');
                         } else {
-                                std::cout<<0;
+                                //std::cout<<0;
+                                str.push_back('0');
                         }
                         end=end<<1;
                         ch=ch<<1;
-                }        
+                }
+                m[c]=str;        
         }
-        
+        //now we have character and huffman code in unordered_map
         //header decode end
+        
+        //std::cout<<std::endl;
+        //print_huffman_code(m);
+        //std::cout<<std::endl<<std::endl;
+        
+        //Next we have to build huffman tree from the unordered map
+        
+        //Build huffman tree begin
+        //Node_decode* node = build_huffman_tree_from_map(m); //complete
+        //Build huffman tree end
+        //after use delete the tree
         
         file_end.seekg(-1, std::ios::end);
         last_byte=file_end.tellg(); // get the last byte - the last byte is having padding information
@@ -272,7 +332,7 @@ int decode(std::string file_to_decode, std::unordered_map<char,std::string> m, N
 
 int encode(std::string file_to_encode){
         std::string code;
-        std::vector<Node *> nodes;
+        std::vector<Node *> nodes;//to build huffman tree;
         std::unordered_map<char,std::string> m;
         std::ifstream file(file_to_encode, std::ios::binary);
         ull offset;
@@ -286,14 +346,14 @@ int encode(std::string file_to_encode){
         }
         build_huffman_tree(nodes, file);
         get_huffman_code(nodes[0], code, m); //Now I have the huffman code inside the unordered_map m.       
-        std::cout<<std::endl;
-        print_huffman_code(m); //to print huffman code
+        //std::cout<<std::endl;
+        //print_huffman_code(m); //to print huffman code
         file.clear();
         file.seekg(0,std::ios::beg);//to reach the beginning of the file to start compression.
         
         //encoding starts here
         std::ofstream out("hihihi.bin");
-        unsigned char counter, byte, mask, append=1, data_mask=128;
+        unsigned char counter, byte, mask, lastbits, append=1, data_mask=128;
         std::string str;
         char ch;
         head_size size;
@@ -312,23 +372,29 @@ int encode(std::string file_to_encode){
         
         size=m.size();
         out<<size;     
+        std::cout<<"."; //found that a cout is necessary here or in the loop. Else going to infinite loop.
+        //Sometimes it will change when I stop printing on terminal and print to a output file.
+        //Until then this has to stay here.
         for(auto i: m){
-                out<<i.first;   
-                std::cout<<"'"<<i.first<<":";
+                ch=i.first;
+                out<<ch;   
+                //std::cout<<"'"<<i.first<<":"; //when this line is removes programming going to infinite loop (sometimes). WHY???
+                //found that any cout is ok;
+                //std::cout<<".";
                 count = (i.second.size())/8;
                 out<<count;
-                std::cout<<count<<"'";
+                //std::cout<<count<<"'";
                 counter = 0;
                 
-                for(j=0; j<count*8; j++){//problem found here and solved
+                for(j=0; j<(count*8); j++){//problem found here and solved
                         char c = i.second[j];
                         if(c=='1'){
                                 byte=byte<<1;
-                                std::cout<<1;
+                                //std::cout<<1;
                                 byte=byte|append;
                         } else if(c=='0'){
                                 byte=byte<<1;
-                                std::cout<<0;
+                                //std::cout<<0;
                         }
                         counter++;
                         if(counter==8){
@@ -337,22 +403,22 @@ int encode(std::string file_to_encode){
                                 counter=0;
                         }
                 }
-                
-                for(unsigned char iter=0; iter<((i.second.size())-j); iter++){
+                lastbits=i.second.size()-j;
+                for(unsigned char iter=0; iter<lastbits; iter++){
                         char c = i.second[j+iter];
                         if(c=='1'){
                                 byte=byte<<1;
-                                std::cout<<1;
+                                //std::cout<<1;
                                 byte=byte|append;
                         } else {
                                 byte=byte<<1;
-                                std::cout<<0;
+                                //std::cout<<0;
                         }
                 }
                         
-                byte=byte<<(8-((i.second.size())-j));
+                byte=byte<<(8-lastbits);//padding extra with 0
                 mask=0;
-                for(unsigned char iter=0; iter<((i.second.size())-j); iter++){
+                for(unsigned char iter=0; iter<lastbits; iter++){
                         mask = mask>>1;
                         mask = mask|data_mask;
                 }
@@ -362,7 +428,7 @@ int encode(std::string file_to_encode){
                 
         }
         
-        std::cout<<std::endl<<"Pointer pos after head : "<<out.tellp()<<std::endl;
+        //std::cout<<std::endl<<"Pointer pos after head : "<<out.tellp()<<std::endl;
        
         //header end
        
@@ -409,11 +475,14 @@ int encode(std::string file_to_encode){
         file.close();
         out.close();
         
-        decode("hihihi.bin", m, nodes[0]); //to test decode
+        decode("hihihi.bin",/* m,*/ nodes[0]); //to test decode
        
         
         m.clear();
-        free_nodes(nodes);
+        //free_nodes(nodes);
+        free_huffman_tree(nodes[0]);
+        nodes[0]=NULL;
+        
         nodes.clear();
         
         return (8-counter); //returns the number of padded bits. It was used in testing
