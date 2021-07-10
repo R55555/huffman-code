@@ -208,83 +208,90 @@ void print_huffman_code(std::unordered_map<char, std::string> m){
         }
 }
 
-int decode(std::string file_to_decode, /*std::unordered_map<char,std::string> m,*/ Node *node){
+int decode(std::string file_to_decode, /*std::unordered_map<char,std::string> m,*/ Node *node ,ull offset){
         unsigned char data_mask=128, extra_mask=1;
         unsigned char counter;
         std::unordered_map<char,std::string> m; //required in the next step to get from headers
         std::string str;
-        char c, ch, end;
+        char c, ch, end, byte, mask;//can reuse any two. Do it if every test passes.
         head_size size;
         byte_count count;
-        ull last_byte;
+        ull last_byte; 
         
         std::ifstream file(file_to_decode, std::ios::binary);
         std::ifstream file_end(file_to_decode, std::ios::binary);
-        //std::ofstream out("output.txt", std::ios::binary);
+        std::ofstream out("output.txt", std::ios::binary);
         if(!file.is_open() || !file_end.is_open() /*|| !out.is_open()*/){
                 std::cerr<<"Cannot open file to decode"<<std::endl;
                 return -1;
         }      
         //std::cout<<std::endl<<offset<<std::endl;
+        std::cout<<std::endl<<"Decoding..."<<std::endl<<std::endl;
         
-        //header decode start
+        ///*
+        //header decode start //problem is with header decode
         
         file>>size;
-        //std::cout<<size;
-        for(head_size i;i<size; i++){
-                file.get(c);
-                //std::cout<<"'"<<c<<":";
-                file>>count;
-                //std::cout<<count<<"'";
+        std::cout<<"Header size : "<<size<<std::endl;
+        for(head_size i=0; i<size; i++){
                 str="";
-                for(byte_count iter=0; iter<count; iter++){
-                        file.get(ch);
-                        for(counter=0; counter<8; counter++){
-                                if(ch&data_mask){
+                file.get(ch);
+                //std::cout<<ch<<" ";
+                file.read((char *)&count, sizeof(byte_count));
+                //std::cout<<count<<" : ";
+                for(byte_count j=0; j<count; j++){
+                        file.get(byte);
+                        for(counter = 0; counter<8; counter++){
+                                if(byte & data_mask){
                                         //std::cout<<1;
                                         str.push_back('1');
                                 } else {
                                         //std::cout<<0;
                                         str.push_back('0');
                                 }
-                                ch=ch<<1;
+                                byte = byte<<1;
                         }
                 }
-                file.get(ch); // to get the mask if extra bytes is present
-                file.get(end); //the last byte
-                while(ch&data_mask){
-                        if(end&data_mask){      
+                file.get(byte);
+                file.get(mask);
+                while(mask & data_mask){
+                        if(byte & data_mask){
                                 //std::cout<<1;
                                 str.push_back('1');
                         } else {
                                 //std::cout<<0;
                                 str.push_back('0');
                         }
-                        end=end<<1;
-                        ch=ch<<1;
+                        mask = mask<<1;
+                        byte = byte<<1;
                 }
-                m[c]=str;        
+                //std::cout<<"    :    "<<str<<std::endl;
+                m[ch]=str;
+                
         }
+        std::cout<<std::endl;
+        print_huffman_code(m);
         //now we have character and huffman code in unordered_map
         //header decode end
-        
-        //std::cout<<"\n";
-        //std::cout<<".";
-        //print_huffman_code(m);
-        //std::cout<<std::endl<<std::endl;
+        //*/
         
         //Next we have to build huffman tree from the unordered map
         
         //Build huffman tree begin
+        
         //std::unordered_map<char, std::string> test;
         //Node_decode* node_test = build_huffman_tree_from_map(m); //complete
         //free_huffman_tree(node_test);
+
+
         //Build huffman tree end
         //after use delete the tree
         
         file_end.seekg(-1, std::ios::end);
         last_byte=file_end.tellg(); // get the last byte - the last byte is having padding information
         file_end.get(end);
+        
+        file.seekg(offset, std::ios::beg);
         
         //decode data starts
         //Program handing while using ofstream???
@@ -315,6 +322,7 @@ int decode(std::string file_to_decode, /*std::unordered_map<char,std::string> m,
                         }
                         if((head->left==NULL) && (head->right==NULL)){
                                         std::cout<<head->character;
+                                        out.put(head->character);
                                         head=node;       
                         }
                         ch=ch<<1;
@@ -343,6 +351,7 @@ int decode(std::string file_to_decode, /*std::unordered_map<char,std::string> m,
                 }
                 if((head->left==NULL) && (head->right==NULL)){
                         std::cout<<head->character;
+                        out.put(head->character);
                         head=node;       
                 }
                 ch=ch<<1;
@@ -351,6 +360,8 @@ int decode(std::string file_to_decode, /*std::unordered_map<char,std::string> m,
         }
         //out.close();
         //decode data ends
+        
+        std::cout<<std::endl<<std::endl<<"Decoding ends"<<std::endl;
         
         file_end.close();
         file.close();
@@ -387,7 +398,7 @@ int encode(std::string file_to_encode){
         head_size size;
         byte_count count,j;
         
-        
+        std::cout<<"Encoding..."<<"\n"; 
      
         //header begin 
         
@@ -401,25 +412,20 @@ int encode(std::string file_to_encode){
         
         size=m.size();
         out<<size;     
-        std::cout<<"."; //found that a cout is necessary here or in the loop. Else going to infinite loop.
-        //Sometimes it will change when I stop printing on terminal and print to a output file.
-        //Until then this has to stay here.
+        //std::cout.clear();
         
-        //have found something new:
-        //      the std::cout<<std::endl; statement in the decode was causing an infinite loop
-        //      I think it is an infinite loop because there was no response
-        //      Learn more about the std::cout and the causes of these problems
-        //      The print_print_huffman_code() function was also showing the same issue
         
         for(auto i: m){
                 ch=i.first;
-                out<<ch;   
-                //std::cout<<"'"<<i.first<<":"; //when this line is removes programming going to infinite loop (sometimes). WHY???
-                //found that any cout is ok;
-                //std::cout<<".";
+                //out<<ch; 
+                out.put(ch);
+                //std::cout<<ch<<" ";  
+                
                 count = (i.second.size())/8;
-                out<<count;
-                //std::cout<<count<<"'";
+                out.write(reinterpret_cast<const char *>(&count), sizeof(byte_count));
+                //out<<count;
+                //std::cout<<count<<" : "<<i.second<<std::endl;
+                
                 counter = 0;
                 
                 for(j=0; j<(count*8); j++){//problem found here and solved
@@ -458,10 +464,9 @@ int encode(std::string file_to_encode){
                         mask = mask>>1;
                         mask = mask|data_mask;
                 }
-                out.put(mask);
                 out.put(byte);       
-                 
-                
+                out.put(mask);                 
+                //*/
         }
         
         //std::cout<<std::endl<<"Pointer pos after head : "<<out.tellp()<<std::endl;
@@ -511,7 +516,9 @@ int encode(std::string file_to_encode){
         file.close();
         out.close();
         
-        decode("hihihi.bin",/* m,*/ nodes[0]); //to test decode
+        std::cout<<"Encoding complete"<<"\n";
+        
+        decode("hihihi.bin",/* m,*/ nodes[0], offset); //to test decode
        
         
         m.clear();
