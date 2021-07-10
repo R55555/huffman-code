@@ -2,7 +2,6 @@
 #include<vector>
 #include<unordered_map> 
 #include<fstream>
-#include<typeinfo>
 #define ull unsigned long
 #define head_size int  
 #define byte_count int
@@ -73,7 +72,7 @@ void free_huffman_tree(Node_decode* node){//to free huffman tree during decode
 void get_char_frequency(std::vector<Node *>& nodes, std::ifstream &file){
         char ch;
         int i,flag;
-        while(file.get(ch)){//get is used to include spaces, newlines
+        while(file.get(ch)){//get is used to include spaces, newlines...
                 flag = 0;
                 for(i=0; i<nodes.size(); i++){
                         if(nodes[i]->character==ch){
@@ -158,13 +157,33 @@ void build_huffman_tree(std::vector<Node *>& nodes, std::ifstream &file){
         
 }
 
-Node_decode* build_huffman_tree_from_map(std::unordered_map<char, std::string> m){ //write this function
+Node_decode* build_huffman_tree_from_map(std::unordered_map<char, std::string> m){ 
         Node_decode* node = new Node_decode('a', NULL, NULL); //'a'is just a placeholder.
         Node_decode *head, *temp;
         char ch;
         head = node;
-        
-        //to do
+
+        for(auto i : m){
+                ch = i.first;
+                for(char c : i.second){
+                        if(c=='1'){
+                                if(node->right==NULL){
+                                        temp = new Node_decode(ch, NULL, NULL);
+                                        node->right = temp; 
+                                }
+                                node=node->right;                                
+                        } else {
+                                if(node->left==NULL){
+                                        temp = new Node_decode(ch, NULL, NULL);
+                                        node->left = temp; 
+                                }
+                                node=node->left;                                
+                        }
+                }
+                node->character = ch; // to place the character at the leaves
+                node = head;
+        }
+        temp = NULL;
         return node;
 }
 
@@ -202,14 +221,13 @@ void get_huffman_code(Node* node, std::string str, std::unordered_map<char,std::
 }
 
 void print_huffman_code(std::unordered_map<char, std::string> m){
-        //to do
         for(auto i: m){
                std::cout<<i.first<<" : "<<i.second<<std::endl;
         }
 }
 
-int decode(std::string file_to_decode, /*std::unordered_map<char,std::string> m,*/ Node *node ,ull offset){
-        unsigned char data_mask=128, extra_mask=1;
+int decode(std::string file_to_decode){
+        unsigned char data_mask=128;
         unsigned char counter;
         std::unordered_map<char,std::string> m; //required in the next step to get from headers
         std::string str;
@@ -225,15 +243,14 @@ int decode(std::string file_to_decode, /*std::unordered_map<char,std::string> m,
                 std::cerr<<"Cannot open file to decode"<<std::endl;
                 return -1;
         }      
-        //std::cout<<std::endl<<offset<<std::endl;
+
         std::cout<<std::endl<<"Decoding..."<<std::endl<<std::endl;
         
-        ///*
-        //header decode start //problem is with header decode
+        //header decode start
         
         file>>size;
         std::cout<<"Header size : "<<size<<std::endl;
-        for(head_size i=0; i<size; i++){
+        for(head_size i=0; i<size; i++){ //to decode the data to an unordered_map m
                 str="";
                 file.get(ch);
                 //std::cout<<ch<<" ";
@@ -265,40 +282,27 @@ int decode(std::string file_to_decode, /*std::unordered_map<char,std::string> m,
                         mask = mask<<1;
                         byte = byte<<1;
                 }
-                //std::cout<<"    :    "<<str<<std::endl;
                 m[ch]=str;
                 
         }
-        std::cout<<std::endl;
-        print_huffman_code(m);
+
         //now we have character and huffman code in unordered_map
         //header decode end
-        //*/
         
         //Next we have to build huffman tree from the unordered map
         
         //Build huffman tree begin
-        
-        //std::unordered_map<char, std::string> test;
-        //Node_decode* node_test = build_huffman_tree_from_map(m); //complete
-        //free_huffman_tree(node_test);
-
-
+        Node_decode* node = build_huffman_tree_from_map(m); //complete
+        std::unordered_map<char,std::string> test;
         //Build huffman tree end
-        //after use delete the tree
         
         file_end.seekg(-1, std::ios::end);
         last_byte=file_end.tellg(); // get the last byte - the last byte is having padding information
         file_end.get(end);
         
-        file.seekg(offset, std::ios::beg);
-        
         //decode data starts
-        //Program handing while using ofstream???
-        //std::ofstream out("output.txt", std::ios::binary);
-        Node *head = node;
-        //std::cout<<std::endl;
-        while(file.get(ch)&&/*file_next.get(next_ch)*/(file.tellg()<last_byte)){
+        Node_decode *head = node;
+        while(file.get(ch)&&(file.tellg()<last_byte)){
                 for(counter=0; counter<8; counter++){
                         if(ch & data_mask){
                                 //std::cout<<1;
@@ -358,7 +362,8 @@ int decode(std::string file_to_decode, /*std::unordered_map<char,std::string> m,
                 end=end<<1;
         
         }
-        //out.close();
+        out.close();
+        free_huffman_tree(node);
         //decode data ends
         
         std::cout<<std::endl<<std::endl<<"Decoding ends"<<std::endl;
@@ -402,33 +407,26 @@ int encode(std::string file_to_encode){
      
         //header begin 
         
-        //1. enter the total number of characters size. 
+        //1. enter the total number of characters (size). 
         //2. add the character
         //3. add the size of huffamn code in bits divided by 8(integer division) to get bytes that are not padded
-        //4. add the mask to identify the padded bits
-        //5. add the final byte of the huffman code with padding
+        //4. add the final byte of the huffman code with padding
+        //5. add the mask to identify the padded bits
         //6. if no more characters then end, else goto step 2.
         
         
         size=m.size();
-        out<<size;     
-        //std::cout.clear();
-        
+        out<<size;
         
         for(auto i: m){
-                ch=i.first;
-                //out<<ch; 
+                ch=i.first; 
                 out.put(ch);
-                //std::cout<<ch<<" ";  
                 
                 count = (i.second.size())/8;
                 out.write(reinterpret_cast<const char *>(&count), sizeof(byte_count));
-                //out<<count;
-                //std::cout<<count<<" : "<<i.second<<std::endl;
-                
                 counter = 0;
                 
-                for(j=0; j<(count*8); j++){//problem found here and solved
+                for(j=0; j<(count*8); j++){
                         char c = i.second[j];
                         if(c=='1'){
                                 byte=byte<<1;
@@ -445,7 +443,7 @@ int encode(std::string file_to_encode){
                                 counter=0;
                         }
                 }
-                lastbits=i.second.size()-j;
+                lastbits=i.second.size()-j; //to get the size of last unpadded bits.
                 for(unsigned char iter=0; iter<lastbits; iter++){
                         char c = i.second[j+iter];
                         if(c=='1'){
@@ -466,14 +464,7 @@ int encode(std::string file_to_encode){
                 }
                 out.put(byte);       
                 out.put(mask);                 
-                //*/
         }
-        
-        //std::cout<<std::endl<<"Pointer pos after head : "<<out.tellp()<<std::endl;
-       
-        //header end
-       
-        offset=out.tellp(); // to test decode
         
         //data encoding starts
         //huffman code is written as bits.
@@ -518,17 +509,13 @@ int encode(std::string file_to_encode){
         
         std::cout<<"Encoding complete"<<"\n";
         
-        decode("hihihi.bin",/* m,*/ nodes[0], offset); //to test decode
-       
-        
         m.clear();
-        //free_nodes(nodes);
+
         free_huffman_tree(nodes[0]);
         nodes[0]=NULL;
         
         nodes.clear();
-        
-        return (8-counter); //returns the number of padded bits. It was used in testing
+        return 1;
         
 }
 
@@ -541,7 +528,8 @@ int main(int argc, char* argv[]){
                 return -1;
         }
                 
-        padding = encode(argv[1]);
+        encode(argv[1]);
+        decode("hihihi.bin");
         
         return 0;
 
