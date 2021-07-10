@@ -264,7 +264,7 @@ int encode(std::string file_to_encode){
         file.seekg(0,std::ios::beg);//to reach the beginning of the file to start encoding.
         
         //encoding starts here
-        std::ofstream out("hihihi.bin");
+        std::ofstream out("huffman_encoded.bin");
         unsigned char counter, byte, mask, lastbits, append=1, data_mask=128;
         std::string str;
         char ch;
@@ -315,7 +315,7 @@ int encode(std::string file_to_encode){
         std::cout<<"Encoding complete"<<std::endl;
         std::cout<<"Decoded data follows: "<<std::endl<<std::endl;
         
-        decode("hihihi.bin", nodes[0]); //to test decode
+        decode("huffman_encoded.bin", nodes[0]); //to test decode
        
         
         m.clear();
