@@ -187,7 +187,7 @@ Node_decode* build_huffman_tree_from_map(std::unordered_map<char, std::string> m
         return node;
 }
 
-void get_huffman_code(Node_decode* node, std::string str, std::unordered_map<char,std::string> &m){//for testing purposes
+void get_huffman_code(Node_decode* node, std::string str, std::unordered_map<char,std::string> &m){//for testing the code
         if(node->left!=NULL){
                 str.push_back('0');
                 get_huffman_code(node->left, str, m);
@@ -220,7 +220,7 @@ void get_huffman_code(Node* node, std::string str, std::unordered_map<char,std::
         }
 }
 
-void print_huffman_code(std::unordered_map<char, std::string> m){
+void print_huffman_code(std::unordered_map<char, std::string> m){//for testing the code
         for(auto i: m){
                std::cout<<i.first<<" : "<<i.second<<std::endl;
         }
@@ -229,17 +229,17 @@ void print_huffman_code(std::unordered_map<char, std::string> m){
 int decode(std::string file_to_decode){
         unsigned char data_mask=128;
         unsigned char counter;
-        std::unordered_map<char,std::string> m; //required in the next step to get from headers
+        std::unordered_map<char,std::string> m; 
         std::string str;
-        char c, ch, end, byte, mask;//can reuse any two. Do it if every test passes.
+        char ch, byte, mask;//can reuse any two. Do it if every test passes.
         head_size size;
         byte_count count;
-        ull last_byte; 
+        ull last_byte, offset; 
         
         std::ifstream file(file_to_decode, std::ios::binary);
-        std::ifstream file_end(file_to_decode, std::ios::binary);
         std::ofstream out("output.txt", std::ios::binary);
-        if(!file.is_open() || !file_end.is_open() /*|| !out.is_open()*/){
+        
+        if(!file.is_open() || !out.is_open()){
                 std::cerr<<"Cannot open file to decode"<<std::endl;
                 return -1;
         }      
@@ -296,9 +296,11 @@ int decode(std::string file_to_decode){
         std::unordered_map<char,std::string> test;
         //Build huffman tree end
         
-        file_end.seekg(-1, std::ios::end);
-        last_byte=file_end.tellg(); // get the last byte - the last byte is having padding information
-        file_end.get(end);
+        offset=file.tellg();
+        file.seekg(-1, std::ios::end);
+        last_byte=file.tellg(); // get the last byte - the last byte is having padding information
+        file.get(mask);
+        file.seekg(offset, std::ios::beg);
         
         //decode data starts
         Node_decode *head = node;
@@ -332,7 +334,7 @@ int decode(std::string file_to_decode){
                         ch=ch<<1;
                 }
         }
-        while(end & data_mask){
+        while(mask & data_mask){
                 if(ch & data_mask){
                                 //std::cout<<1;
                         if(head->right==NULL){
@@ -359,16 +361,15 @@ int decode(std::string file_to_decode){
                         head=node;       
                 }
                 ch=ch<<1;
-                end=end<<1;
+                mask=mask<<1;
         
         }
-        out.close();
-        free_huffman_tree(node);
+        free_huffman_tree(node); //deleting the huffman tree
         //decode data ends
         
         std::cout<<std::endl<<std::endl<<"Decoding ends"<<std::endl;
         
-        file_end.close();
+        out.close();
         file.close();
         return 1;
         
@@ -380,6 +381,7 @@ int encode(std::string file_to_encode){
         std::unordered_map<char,std::string> m;
         std::ifstream file(file_to_encode, std::ios::binary);
         ull offset;
+        
         if(!file.is_open()){
                 std::cerr<<"Cannot open file"<<std::endl;
                 return -1;
@@ -388,15 +390,14 @@ int encode(std::string file_to_encode){
                         std::cerr<<"File empty"<<std::endl;
                         return -1;
         }
+        
         build_huffman_tree(nodes, file);
         get_huffman_code(nodes[0], code, m); //Now I have the huffman code inside the unordered_map m.       
-        //std::cout<<std::endl;
-        //print_huffman_code(m); //to print huffman code
         file.clear();
-        file.seekg(0,std::ios::beg);//to reach the beginning of the file to start compression.
+        file.seekg(0,std::ios::beg);//to reach the beginning of the file to start encoding.
         
         //encoding starts here
-        std::ofstream out("hihihi.bin");
+        std::ofstream out("encoded.huff");
         unsigned char counter, byte, mask, lastbits, append=1, data_mask=128;
         std::string str;
         char ch;
@@ -428,13 +429,9 @@ int encode(std::string file_to_encode){
                 
                 for(j=0; j<(count*8); j++){
                         char c = i.second[j];
+                        byte=byte<<1;
                         if(c=='1'){
-                                byte=byte<<1;
-                                //std::cout<<1;
                                 byte=byte|append;
-                        } else if(c=='0'){
-                                byte=byte<<1;
-                                //std::cout<<0;
                         }
                         counter++;
                         if(counter==8){
@@ -446,17 +443,13 @@ int encode(std::string file_to_encode){
                 lastbits=i.second.size()-j; //to get the size of last unpadded bits.
                 for(unsigned char iter=0; iter<lastbits; iter++){
                         char c = i.second[j+iter];
+                        byte=byte<<1;
                         if(c=='1'){
-                                byte=byte<<1;
-                                //std::cout<<1;
                                 byte=byte|append;
-                        } else {
-                                byte=byte<<1;
-                                //std::cout<<0;
                         }
                 }
                         
-                byte=byte<<(8-lastbits);//padding extra with 0
+                byte=byte<<(8-lastbits);//padding extra bits with 0
                 mask=0;
                 for(unsigned char iter=0; iter<lastbits; iter++){
                         mask = mask>>1;
@@ -472,18 +465,12 @@ int encode(std::string file_to_encode){
         while(file.get(ch)){
                 str=m[ch];
                 for(char i: str){
+                        byte=byte<<1;
                         if(i=='1'){
-                                byte=byte<<1;
-                                byte=byte|append;
-                                //std::cout<<i;     
-                        }
-                        else if(i=='0'){
-                                byte=byte<<1;   
-                                //std::cout<<i;    
+                                byte=byte|append;   
                         }
                         counter++; 
                         if(counter==8){
-                                //std::cout<<counter;
                                 counter=0;
                                 out.put(byte);
                                 byte=0;
@@ -501,7 +488,6 @@ int encode(std::string file_to_encode){
                 }
                 out.put(byte);
         } 
-        
         //data encoding ends
         
         file.close();
@@ -529,7 +515,7 @@ int main(int argc, char* argv[]){
         }
                 
         encode(argv[1]);
-        decode("hihihi.bin");
+        decode("encoded.huff");
         
         return 0;
 
