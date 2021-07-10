@@ -26,10 +26,10 @@ class Node{
 class Node_decode{
         public:
                 char character;
-                Node * left;
-                Node * right; 
+                Node_decode* left;
+                Node_decode* right; 
                  
-        Node_decode(char c, Node* l, Node* r){
+        Node_decode(char c, Node_decode* l, Node_decode* r){
                 character = c;
                 left = l;
                 right = r;
@@ -158,9 +158,31 @@ void build_huffman_tree(std::vector<Node *>& nodes, std::ifstream &file){
         
 }
 
-Node_decode* build_huffman_tree_from_map(std::unordered_map<char, std::string> m); //write this function
+Node_decode* build_huffman_tree_from_map(std::unordered_map<char, std::string> m){ //write this function
+        Node_decode* node = new Node_decode('a', NULL, NULL); //'a'is just a placeholder.
+        Node_decode *head, *temp;
+        char ch;
+        head = node;
+        
+        //to do
+        return node;
+}
 
-
+void get_huffman_code(Node_decode* node, std::string str, std::unordered_map<char,std::string> &m){//for testing purposes
+        if(node->left!=NULL){
+                str.push_back('0');
+                get_huffman_code(node->left, str, m);
+                str.pop_back();
+        }
+        if(node->right!=NULL){
+                str.push_back('1');
+                get_huffman_code(node->right, str, m);
+                str.pop_back();
+        }
+        if(node->left==NULL && node->right==NULL){
+                m[node->character] = str;
+        }
+}
 
 
 void get_huffman_code(Node* node, std::string str, std::unordered_map<char,std::string> &m){
@@ -198,7 +220,8 @@ int decode(std::string file_to_decode, /*std::unordered_map<char,std::string> m,
         
         std::ifstream file(file_to_decode, std::ios::binary);
         std::ifstream file_end(file_to_decode, std::ios::binary);
-        if(!file.is_open() || !file_end.is_open()){
+        //std::ofstream out("output.txt", std::ios::binary);
+        if(!file.is_open() || !file_end.is_open() /*|| !out.is_open()*/){
                 std::cerr<<"Cannot open file to decode"<<std::endl;
                 return -1;
         }      
@@ -206,7 +229,6 @@ int decode(std::string file_to_decode, /*std::unordered_map<char,std::string> m,
         
         //header decode start
         
-        //std::cout<<std::endl<<std::endl;
         file>>size;
         //std::cout<<size;
         for(head_size i;i<size; i++){
@@ -246,14 +268,17 @@ int decode(std::string file_to_decode, /*std::unordered_map<char,std::string> m,
         //now we have character and huffman code in unordered_map
         //header decode end
         
-        //std::cout<<std::endl;
+        //std::cout<<"\n";
+        //std::cout<<".";
         //print_huffman_code(m);
         //std::cout<<std::endl<<std::endl;
         
         //Next we have to build huffman tree from the unordered map
         
         //Build huffman tree begin
-        //Node_decode* node = build_huffman_tree_from_map(m); //complete
+        //std::unordered_map<char, std::string> test;
+        //Node_decode* node_test = build_huffman_tree_from_map(m); //complete
+        //free_huffman_tree(node_test);
         //Build huffman tree end
         //after use delete the tree
         
@@ -262,8 +287,10 @@ int decode(std::string file_to_decode, /*std::unordered_map<char,std::string> m,
         file_end.get(end);
         
         //decode data starts
+        //Program handing while using ofstream???
+        //std::ofstream out("output.txt", std::ios::binary);
         Node *head = node;
-        std::cout<<std::endl;
+        //std::cout<<std::endl;
         while(file.get(ch)&&/*file_next.get(next_ch)*/(file.tellg()<last_byte)){
                 for(counter=0; counter<8; counter++){
                         if(ch & data_mask){
@@ -322,6 +349,7 @@ int decode(std::string file_to_decode, /*std::unordered_map<char,std::string> m,
                 end=end<<1;
         
         }
+        //out.close();
         //decode data ends
         
         file_end.close();
@@ -370,11 +398,19 @@ int encode(std::string file_to_encode){
         //5. add the final byte of the huffman code with padding
         //6. if no more characters then end, else goto step 2.
         
+        
         size=m.size();
         out<<size;     
         std::cout<<"."; //found that a cout is necessary here or in the loop. Else going to infinite loop.
         //Sometimes it will change when I stop printing on terminal and print to a output file.
         //Until then this has to stay here.
+        
+        //have found something new:
+        //      the std::cout<<std::endl; statement in the decode was causing an infinite loop
+        //      I think it is an infinite loop because there was no response
+        //      Learn more about the std::cout and the causes of these problems
+        //      The print_print_huffman_code() function was also showing the same issue
+        
         for(auto i: m){
                 ch=i.first;
                 out<<ch;   
