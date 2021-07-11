@@ -507,7 +507,6 @@ int encode(std::string file_to_encode){
 
 
 int main(int argc, char* argv[]){
-        int padding; //to store the no. of padding bits. For testing.
         
         if(argc==1 || argc>2){
                 std::cerr<<"Invalid number of arguments"<<std::endl;
